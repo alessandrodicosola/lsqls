@@ -1,0 +1,17 @@
+
+# Created by https://www.gitignore.io/api/code
+# Edit at https://www.gitignore.io/?templates=code
+
+### Code ###
+.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### CMake folders ###
+build
+bin
+Testing
+# End of https://www.gitignore.io/api/code
