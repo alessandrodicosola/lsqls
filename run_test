@@ -1,0 +1,3 @@
+#!/bin/bash
+#CTEST_OUTPUT_ON_FAILURE=1
+cd build && cmake .. && make all &&  ctest --verbose --output-on-failure -R $1

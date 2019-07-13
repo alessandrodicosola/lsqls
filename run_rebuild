@@ -1,0 +1,7 @@
+#!/bin/bash
+rm -rf bin
+rm -rf build
+mkdir bin
+mkdir build
+cd build
+cmake .. && make all 
