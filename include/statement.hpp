@@ -53,4 +53,5 @@ std::ostream& operator <<(std::ostream& out,const statement& statement){
     out << statement.line_number << "[" << enum_to_string.at(statement.type) << "] " << trim_line; 
     return out;
 }
+
 #endif

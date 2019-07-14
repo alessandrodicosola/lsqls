@@ -14,7 +14,6 @@ file64::file64(const char *filename, const char *mode, const unsigned int BUFFER
 
     _is_open = true;
 
-    //create a full buffered file with 4KB
     char result = setvbuf(ptr, NULL, _IOFBF, _BUFFER_SIZE);
     if (result != 0)
     {
