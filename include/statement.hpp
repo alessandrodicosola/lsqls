@@ -1,5 +1,6 @@
 #ifndef __STATEMENT__
 #define __STATEMENT__
+#define __MAX_LINE_STATEMENT_LENGTH__ 110
 
 #include <string>
 #include <ostream>
@@ -46,8 +47,8 @@ const bool has_table() const { return !table.empty(); }
 
 std::ostream& operator <<(std::ostream& out,const statement& statement){
      std::string trim_line = statement.line;
-    if (statement.line.length() > 16) {
-        trim_line.erase(16,statement.line.length()-1);
+    if (statement.line.length() > __MAX_LINE_STATEMENT_LENGTH__ ) {
+        trim_line.erase(__MAX_LINE_STATEMENT_LENGTH__ + 1,statement.line.length()-1);
         trim_line += "...";
     }
     out << statement.line_number << "[" << enum_to_string.at(statement.type) << "] " << trim_line; 
