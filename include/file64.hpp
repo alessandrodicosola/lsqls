@@ -43,7 +43,7 @@ public:
     uint64_t current_last_line_number() const { return _line_number; }
 
 private:
-    std::function<bool(unsigned char)> not_isspace_func = [](unsigned char c) -> bool { return !std::isspace(c); };
+    std::function<bool(int)> not_isspace_func = [](int c) -> bool { return !std::isspace(c); };
 };
 
 #endif

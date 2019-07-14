@@ -82,11 +82,14 @@ const bool file64::get_line(std::string &line)
 
     /* trim string and delete last \n char */
     auto last_lf = line.find_last_of('\n');
-    if (last_lf != std::string::npos) line.erase(last_lf);
+    if (last_lf != std::string::npos)
+        line.erase(last_lf);
     auto left = std::find_if(line.cbegin(), line.cend(), not_isspace_func);
-    auto right = std::find_if(line.crbegin(), line.crend(), not_isspace_func).base(); // .base() change iterator direction
-    line.erase(line.cbegin(), left);
-    line.erase(right, line.cend());
+    auto right = std::find_if(line.crbegin(), line.crend(), not_isspace_func).base();
+    if (left > line.cbegin())
+        line.erase(line.cbegin(), left);
+    if (right < line.cend())
+        line.erase(right, line.cend());
     return true;
 }
 
