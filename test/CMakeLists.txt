@@ -10,10 +10,7 @@ message(STATUS "bin directory for test: ${CMAKE_CURRENT_BINARY_DIR}")
 
 set(EXTERNAL_SOURCES ${PARENT_DIRECTORY}/src/file64.cpp)
 
-set(TEST1 test_path)
-add_test(NAME ${TEST1} COMMAND ${TEST1})
-add_executable(${TEST1} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST1}.cpp)
-
+#TEST1 test_path deleted because move the project from c++11 to c++17 for using std::filesystem
 set(TEST2 test_file64)
 add_test(NAME ${TEST2} COMMAND ${TEST2})
 add_executable(${TEST2} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST2}.cpp ${EXTERNAL_SOURCES})
