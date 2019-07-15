@@ -30,9 +30,7 @@ const static std::unordered_map<statement_type,std::string> enum_to_string {
     {statement_type::UNLOCK,"UNLOCK"},
     {statement_type::COMMENT,"COMMENT"},
     {statement_type::EXECUTABLE_COMMENT,"EXECUTABLE_COMMENT"},
-    {statement_type::START_MULTILINE_COMMENT,"START_MULTILINE_COMMENT"},
-    {statement_type::END_MULTILINE_COMMENT,"END_MULTILINE_COMMENT"},
-    {statement_type::NONE,"NONE"},
+    {statement_type::NONE,"NONE"}
 };
 
 

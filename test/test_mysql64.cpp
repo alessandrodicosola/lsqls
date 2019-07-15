@@ -12,11 +12,20 @@ int main(void)
 
     while (file.read(s))
     {
-        if (s.type == statement_type::EXECUTABLE_COMMENT)
+        char *val = new char[1024];
+        sprintf(val, "Expected table for %s", enum_to_string.at(s.type).c_str());
+
+        if (s.type == statement_type::COMMENT || s.type == statement_type::NONE || s.type == statement_type::UNLOCK)
+            ASSERT_NOMSG(!s.has_table());
+        else if (s.type == statement_type::EXECUTABLE_COMMENT)
         {
-            if (s.line.find("ALTER TABLE"))
-                ASSERT(s.has_table(), "expected table");
+            if (s.line.find("ALTER TABLE") != std::string::npos)
+                ASSERT(s.has_table(), val);
+            else
+                ASSERT_NOMSG(!s.has_table());
         }
+        else
+            ASSERT(s.has_table(), val);
     }
 
     return 0;
