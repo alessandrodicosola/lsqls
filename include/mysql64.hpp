@@ -63,6 +63,7 @@ const bool mysql64::read(statement &statement)
     {
         statement.type = statement_type::EXECUTABLE_COMMENT;
         statement.line = line_read;
+        statement.table = sql_utility::get_table(line_read);
     }
     else if (sql_utility::is_starting_multiline_comment(line_read))
     {
