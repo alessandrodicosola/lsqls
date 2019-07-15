@@ -2,20 +2,19 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include "mysql64.hpp"
-
 #include <thread>
 #include <chrono>
-
-#include <filesystem>
-#include <cinttypes>
-
 using namespace std::literals::chrono_literals;
+#include <filesystem>
+#include <cmath>
+
+#include "mysql64.hpp"
 
 /* global */
 mysql64 *SQL64_FILE = nullptr;
 std::filesystem::path current_path;
+std::string max_size_formatted;
+bool SKIP_ALL_TABLES = false;
 
 /* 100KB of buffer should be enough for Friends table which contains a lot of data for each line */
 const unsigned int BUFFER_SIZE = 100 * 1024;
@@ -26,8 +25,13 @@ void option_t(const std::vector<std::string> &excluded_tables);
 void option_s(int number_of_lines);
 void show_progress();
 
+const std::string format_bytes(const uint64_t value);
+
 int main(int argc, char **args)
 {
+   
+
+
     if (argc <= 2)
     {
         usage();
@@ -36,23 +40,30 @@ int main(int argc, char **args)
 
     const std::string filename = std::string(args[1]);
     SQL64_FILE = new mysql64(filename, FILE_MODE_READ, BUFFER_SIZE);
+
     if (!SQL64_FILE->is_open())
         return 1;
 
-    /* save file path */
+    max_size_formatted = format_bytes(SQL64_FILE->size());
     std::filesystem::path temp_path{filename};
-    std::swap(current_path, temp_path);
+    current_path = std::move(temp_path);
 
     const std::string option = std::string(args[2]);
 
     if (option == "-t" || option == "--tables")
     {
         std::vector<std::string> excluded_tables;
-        if (argc > 2)
+
+        if (std::string(args[argc - 1]) == "--dry")
+            SKIP_ALL_TABLES = true;
+        else
         {
-            for (int i = 3; i <= argc - 1; i++)
+            if (argc > 2)
             {
-                excluded_tables.push_back(std::string(args[i]));
+                for (int i = 3; i <= argc - 1; i++)
+                {
+                    excluded_tables.push_back(std::string(args[i]));
+                }
             }
         }
         option_t(excluded_tables);
@@ -75,12 +86,12 @@ int main(int argc, char **args)
 void usage()
 {
     const std::string usage[]{
-        "lsqls - split large sql file into small files", "lsqls FILE [OPTION]",
+        "lsqls - split large sql file into small files",
+        "lsqls FILE [OPTION]",
         "split sql FILE based on OPTION",
-        "-t, --tables [EXCLUDED TABLES]\n\tcreate files named with table name "
-        "used by FILE. Skip EXCLUDED TABLES if setted",
-        "-s, --split [NUMBER OF LINE]\n\tsplit sql file into different file with "
-        "fixed number of lines"};
+        "-t, --tables [EXCLUDED TABLES]\n\tcreate files named with table name used by FILE. Skip EXCLUDED TABLES if setted",
+        "-s, --split [NUMBER OF LINE]\n\tsplit sql file into different file with fixed number of lines",
+        "--dry\n\tread FILE without creating new file; has debug purpose"};
 
     std::cout << "NAME"
               << "\n"
@@ -92,7 +103,8 @@ void usage()
               << "\n"
               << "\t" << usage[2] << "\n"
               << usage[3] << "\n"
-              << usage[4] << std::endl;
+              << usage[4] << "\n"
+              << usage[5] << std::endl;
 }
 
 void option_t(const std::vector<std::string> &excluded_tables)
@@ -119,52 +131,57 @@ void option_t(const std::vector<std::string> &excluded_tables)
         if (curr_statement.line == "\n" || curr_statement.line.empty())
             continue;
 
-        if (curr_statement.has_table())
+        if (!SKIP_ALL_TABLES)
         {
-
-            if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
+            if (curr_statement.has_table())
             {
-                temp.clear();
-                continue;
-            }
 
-            std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
+                if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
+                {
+                    temp.clear();
+                    continue;
+                }
 
-            if (last_table != curr_statement.table)
-                file_to_write = new mysql64(path_to_write.string(), FILE_MODE_APPEND, BUFFER_SIZE);
+                std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
 
-            if (temp.size() > 0)
-            {
-                std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
-                temp.clear();
-            }
+                if (last_table != curr_statement.table)
+                    file_to_write = new mysql64(path_to_write.string(), FILE_MODE_APPEND, BUFFER_SIZE);
 
-            file_to_write->write(curr_statement);
+                if (temp.size() > 0)
+                {
+                    std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
+                    temp.clear();
+                }
 
-            last_table = curr_statement.table;
-        }
-        else
-        {
-            if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), last_table) != excluded_tables.cend())
-            {
-                temp.clear();
-                continue;
+                file_to_write->write(curr_statement);
+
+                last_table = curr_statement.table;
             }
             else
             {
-                if (curr_statement.type == statement_type::UNLOCK)
+                if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), last_table) != excluded_tables.cend())
                 {
-                    file_to_write->write(curr_statement);
+                    temp.clear();
                     continue;
                 }
                 else
                 {
-                    temp.push_back(curr_statement);
+                    if (curr_statement.type == statement_type::UNLOCK)
+                    {
+                        file_to_write->write(curr_statement);
+                        continue;
+                    }
+                    else
+                    {
+                        temp.push_back(curr_statement);
+                    }
                 }
             }
         }
     }
-    delete file_to_write;
+
+    if (file_to_write != nullptr)
+        delete file_to_write;
 }
 
 void option_s(int number_of_lines)
@@ -174,6 +191,22 @@ void option_s(int number_of_lines)
 
 void show_progress()
 {
-    int percentage = (int)(SQL64_FILE->current_position() / SQL64_FILE->size()) * 100;
-    std::cout << SQL64_FILE->current_position() << " - " << SQL64_FILE->size() << " [" << percentage << "]\n";
+    std::cout << format_bytes(SQL64_FILE->current_position()) << "-" << max_size_formatted << "\n";
+}
+
+const std::string format_bytes(const uint64_t value)
+{
+
+    static const char *prefixes[5] = {"B", "KB", "MB", "GB", "TB"};
+    if (value == 0)
+        return "0B";
+    if (value < 1024)
+        return std::to_string(value) + "B";
+
+    int exponent = log10(value) / 3;
+    double return_value = value / pow(1024, exponent);
+
+    char *out = new char[20];
+    sprintf(out, "%3.2f%s", return_value, prefixes[exponent]);
+    return out;
 }

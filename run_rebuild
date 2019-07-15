@@ -4,4 +4,4 @@ rm -rf build
 mkdir bin
 mkdir build
 cd build
-exec ../run_debug 
+cmake .. && make all 
