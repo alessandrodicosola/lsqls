@@ -13,9 +13,6 @@
 
 using namespace std::literals::chrono_literals;
 
-/* debug */
-const bool IS_DEBUG = true;
-
 /* global */
 mysql64 *SQL64_FILE = nullptr;
 std::filesystem::path current_path;
@@ -114,42 +111,44 @@ void option_t(const std::vector<std::string> &excluded_tables)
         //avoid high cpu temp caused by 100% usage
         std::this_thread::sleep_for(10ms);
 
-        if (IS_DEBUG)
-            std::cout << curr_statement << '\n';
-        else
+        show_progress();
+
+        if (curr_statement.type == statement_type::COMMENT)
+            continue;
+
+        if (curr_statement.line == "\n" || curr_statement.line.empty())
+            continue;
+
+        if (curr_statement.has_table())
         {
 
-            show_progress();
-
-            if (curr_statement.type == statement_type::COMMENT)
-                continue;
-
-            if (curr_statement.line == "\n" || curr_statement.line.empty())
-                continue;
-
-            if (curr_statement.has_table())
+            if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
             {
+                temp.clear();
+                continue;
+            }
 
-                if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
-                {
-                    temp.clear();
-                    continue;
-                }
+            std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
 
-                std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
+            if (last_table != curr_statement.table)
+                file_to_write = new mysql64(path_to_write.string(), FILE_MODE_APPEND, BUFFER_SIZE);
 
-                if (last_table != curr_statement.table)
-                    new mysql64(path_to_write.string(), FILE_MODE_APPEND, BUFFER_SIZE);
+            if (temp.size() > 0)
+            {
+                std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
+                temp.clear();
+            }
 
-                if (temp.size() > 0)
-                {
-                    std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
-                    temp.clear();
-                }
+            file_to_write->write(curr_statement);
 
-                file_to_write->write(curr_statement);
-
-                last_table = curr_statement.table;
+            last_table = curr_statement.table;
+        }
+        else
+        {
+            if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), last_table) != excluded_tables.cend())
+            {
+                temp.clear();
+                continue;
             }
             else
             {
@@ -158,19 +157,14 @@ void option_t(const std::vector<std::string> &excluded_tables)
                     file_to_write->write(curr_statement);
                     continue;
                 }
-
-                if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), last_table) != excluded_tables.cend())
-                {
-                    temp.clear();
-                    continue;
-                }
                 else
+                {
                     temp.push_back(curr_statement);
+                }
             }
         }
-
-        delete file_to_write;
     }
+    delete file_to_write;
 }
 
 void option_s(int number_of_lines)

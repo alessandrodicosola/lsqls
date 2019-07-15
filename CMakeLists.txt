@@ -9,9 +9,7 @@ add_definitions(-D_FILE_OFFSET_BITS=64)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(MAIN_SOURCES  ${CMAKE_SOURCE_DIR}/src/main.cpp)
 set(SOURCES 
-            #${CMAKE_SOURCE_DIR}/src/sql_file.cpp
             ${CMAKE_SOURCE_DIR}/src/file64.cpp
-            #${CMAKE_SOURCE_DIR}/src/statement.cpp
 )
 
 
