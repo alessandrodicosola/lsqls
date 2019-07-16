@@ -10,7 +10,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(MAIN_SOURCES  ${CMAKE_SOURCE_DIR}/src/main.cpp)
 set(SOURCES 
             ${CMAKE_SOURCE_DIR}/src/file64.cpp
-            ${CMAKE_SOURCE_DIR}/src/command_line_parser.cpp
 )
 
 

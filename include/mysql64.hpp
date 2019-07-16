@@ -23,6 +23,16 @@ public:
     const uint64_t current_position() { return file.current_position(); }
 
 private:
+    inline void assert_ending_with_column(const statement &statement) const
+    {
+        /* assert line ending with ; */
+        char *error = new char[100];
+        sprintf(error, "statement [%s] at line %d not ending with comma", enum_to_string.at(statement.type).c_str(), statement.line_number);
+        if (statement.line.back() != ';')
+            throw std::runtime_error(error);
+    }
+
+private:
     file64 file;
 };
 
@@ -64,6 +74,8 @@ const bool mysql64::read(statement &statement)
         statement.type = statement_type::EXECUTABLE_COMMENT;
         statement.line = line_read;
         statement.table = sql_utility::get_table(line_read);
+
+        assert_ending_with_column(statement);
     }
     else if (sql_utility::is_starting_multiline_comment(line_read))
     {
@@ -87,6 +99,8 @@ const bool mysql64::read(statement &statement)
         statement.line = out;
         statement.table = sql_utility::get_table(out);
         statement.type = sql_utility::get_statement_type(out);
+
+        assert_ending_with_column(statement);
     }
 
     return true;

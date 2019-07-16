@@ -12,6 +12,7 @@ int main(void)
 
     while (file.read(s))
     {
+        std::cout <<s<<'\n';
         char *val = new char[1024];
         sprintf(val, "Expected table for %s", enum_to_string.at(s.type).c_str());
 
@@ -28,5 +29,6 @@ int main(void)
             ASSERT(s.has_table(), val);
     }
 
+    
     return 0;
 }

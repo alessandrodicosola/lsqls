@@ -14,8 +14,8 @@ using namespace std::literals::chrono_literals;
 mysql64 *SQL64_FILE = nullptr;
 std::filesystem::path current_path;
 std::string max_size_formatted;
-bool SKIP_ALL_TABLES = false;
-
+bool TOKEN_MODE = true;
+bool DEBUG_MODE = false;
 /* 100KB of buffer should be enough for Friends table which contains a lot of data for each line */
 const unsigned int BUFFER_SIZE = 100 * 1024;
 
@@ -29,8 +29,6 @@ const std::string format_bytes(const uint64_t value);
 
 int main(int argc, char **args)
 {
-   
-
 
     if (argc <= 2)
     {
@@ -55,9 +53,20 @@ int main(int argc, char **args)
         std::vector<std::string> excluded_tables;
 
         if (std::string(args[argc - 1]) == "--dry")
-            SKIP_ALL_TABLES = true;
+        {
+            TOKEN_MODE = true;
+            DEBUG_MODE = false;
+        }
+        else if (std::string(args[argc - 1]) == "--debug")
+        {
+            DEBUG_MODE = true;
+            TOKEN_MODE = false;
+        }
         else
         {
+            TOKEN_MODE = false;
+            DEBUG_MODE = false;
+
             if (argc > 2)
             {
                 for (int i = 3; i <= argc - 1; i++)
@@ -91,7 +100,8 @@ void usage()
         "split sql FILE based on OPTION",
         "-t, --tables [EXCLUDED TABLES]\n\tcreate files named with table name used by FILE. Skip EXCLUDED TABLES if setted",
         "-s, --split [NUMBER OF LINE]\n\tsplit sql file into different file with fixed number of lines",
-        "--dry\n\tread FILE without creating new file; has debug purpose"};
+        "--dry\n\tprint statement read from FILE without writing",
+        "--debug\n\tprocess FILE without writing to file"};
 
     std::cout << "NAME"
               << "\n"
@@ -111,7 +121,6 @@ void option_t(const std::vector<std::string> &excluded_tables)
 {
     statement curr_statement;
 
-    statement_type last_statement_type = statement_type::NONE;
     std::string last_table = "";
 
     std::vector<statement> temp;
@@ -124,6 +133,8 @@ void option_t(const std::vector<std::string> &excluded_tables)
         std::this_thread::sleep_for(10ms);
 
         show_progress();
+        if (TOKEN_MODE || DEBUG_MODE)
+            std::cout << curr_statement << '\n';
 
         if (curr_statement.type == statement_type::COMMENT)
             continue;
@@ -131,7 +142,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
         if (curr_statement.line == "\n" || curr_statement.line.empty())
             continue;
 
-        if (!SKIP_ALL_TABLES)
+        if (!TOKEN_MODE)
         {
             if (curr_statement.has_table())
             {
@@ -149,11 +160,18 @@ void option_t(const std::vector<std::string> &excluded_tables)
 
                 if (temp.size() > 0)
                 {
-                    std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
+                    if (DEBUG_MODE)
+                        std::cout << "writing temp data to " << path_to_write.string() << '\n';
+                    else
+                        std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
+
                     temp.clear();
                 }
 
-                file_to_write->write(curr_statement);
+                if (DEBUG_MODE)
+                    std::cout << "writing to " << path_to_write.string() << '\n';
+                else
+                    file_to_write->write(curr_statement);
 
                 last_table = curr_statement.table;
             }
@@ -168,7 +186,10 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 {
                     if (curr_statement.type == statement_type::UNLOCK)
                     {
-                        file_to_write->write(curr_statement);
+                        if (DEBUG_MODE)
+                            std::cout << "writing unlock." << '\n';
+                        else
+                            file_to_write->write(curr_statement);
                         continue;
                     }
                     else
