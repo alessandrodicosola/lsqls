@@ -68,7 +68,7 @@ const bool file64::get_line(std::string &line)
         {
             perror("Error reading string from file");
             fclose(ptr);
-            throw std::runtime_error("Error rreading line " + std::to_string(_line_number));
+            throw std::runtime_error("Error reading line " + std::to_string(_line_number));
         }
         else if (eof)
         {

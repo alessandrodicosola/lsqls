@@ -17,7 +17,7 @@ std::string max_size_formatted;
 bool TOKEN_MODE = true;
 bool DEBUG_MODE = false;
 /* 100KB of buffer should be enough for Friends table which contains a lot of data for each line */
-const unsigned int BUFFER_SIZE = 100 * 1024;
+const unsigned int BUFFER_SIZE = 200 * 1024;
 
 /* declarations */
 void usage();
@@ -156,7 +156,11 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
 
                 if (last_table != curr_statement.table)
-                    file_to_write = new mysql64(path_to_write.string(), FILE_MODE_APPEND, BUFFER_SIZE);
+                {
+                    if (file_to_write != nullptr)
+                        file_to_write->flush();
+                    file_to_write = new mysql64(path_to_write.string(), FILE_MODE_WRITE, BUFFER_SIZE);
+                }
 
                 if (temp.size() > 0)
                 {

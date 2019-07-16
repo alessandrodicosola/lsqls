@@ -21,6 +21,7 @@ public:
     const uint64_t size() const { return file.file_size(); }
     const bool is_open() const { return file.is_open(); }
     const uint64_t current_position() { return file.current_position(); }
+    void flush() { file.flush(); }
 
 private:
     inline void assert_ending_with_column(const statement &statement) const
@@ -93,7 +94,6 @@ const bool mysql64::read(statement &statement)
         std::string out = line_read;
         while (line_read.back() != ';' && file.get_line(line_read))
         {
-            out.append("\n");
             out.append(line_read);
         }
         statement.line = out;
