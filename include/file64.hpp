@@ -16,7 +16,7 @@ class file64
 {
 private:
     FILE *ptr;
-
+    const char *_filename;
     uint64_t _file_size = 0;
 
     bool _is_open = false;
@@ -25,22 +25,24 @@ private:
     uint64_t _line_number = 0;
 
 public:
-    file64(const char *filename, const char *mode,const unsigned int BUFFER_SIZE);
+    file64(const char *filename, const char *mode, const unsigned int BUFFER_SIZE);
     ~file64();
     void close();
 
     const bool get_line(std::string &line);
     void write_line(const std::string &line);
-    
-    void flush() ;
-    void start() ;
- 
+
+    void flush();
+    void start();
+
     const uint64_t file_size() const { return _file_size; }
     const bool is_open() const { return _is_open; }
 
     const uint64_t current_position() const;
-    
+
     uint64_t current_last_line_number() const { return _line_number; }
+
+    const char *filename() const { return _filename; }
 
 private:
     std::function<bool(int)> not_isspace_func = [](int c) -> bool { return !std::isspace(c); };

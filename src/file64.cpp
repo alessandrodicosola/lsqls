@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-file64::file64(const char *filename, const char *mode, const unsigned int BUFFER_SIZE) : _BUFFER_SIZE{BUFFER_SIZE}
+file64::file64(const char *filename, const char *mode, const unsigned int BUFFER_SIZE) : _BUFFER_SIZE{BUFFER_SIZE}, _filename{filename}
 {
     ptr = fopen(filename, mode);
 
@@ -95,10 +95,21 @@ const bool file64::get_line(std::string &line)
 
 void file64::write_line(const std::string &line)
 {
+
     std::string buffer = line;
     buffer.append("\n");
 
-    size_t result = fputs(buffer.c_str(), ptr);
+    size_t count_written = fwrite(buffer.data(), sizeof(buffer[0]), buffer.size(), ptr);
+    if (count_written < buffer.size())
+    {
+        perror("error occured while writing");
+        flush();
+        fclose(ptr);
+        throw std::runtime_error("error occured writing");
+    }
+
+    //char result = fputs(buffer.c_str(), ptr);
+
     if (ferror(ptr))
     {
         perror("Error writing data into the stream");
@@ -111,7 +122,11 @@ void file64::write_line(const std::string &line)
 
 void file64::flush()
 {
-    fflush(ptr);
+    char result = fflush(ptr);
+    if (result != 0){
+        perror("error occured flushing data from buffer to disk");
+        clearerr(ptr);
+    }
 }
 
 void file64::start()

@@ -17,7 +17,7 @@ std::string max_size_formatted;
 bool TOKEN_MODE = true;
 bool DEBUG_MODE = false;
 /* 100KB of buffer should be enough for Friends table which contains a lot of data for each line */
-const unsigned int BUFFER_SIZE = 200 * 1024;
+const unsigned int BUFFER_SIZE = 3 * 100 * 1024;
 
 /* declarations */
 void usage();
@@ -89,6 +89,8 @@ int main(int argc, char **args)
         return 1;
     }
 
+    delete SQL64_FILE;
+    
     return 0;
 }
 
@@ -149,14 +151,17 @@ void option_t(const std::vector<std::string> &excluded_tables)
 
                 if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
                 {
-                    temp.clear();
+                    if (last_table != curr_statement.table && file_to_write != nullptr)
+                        file_to_write->flush();
+
+                    if (file_to_write != nullptr)
+                        temp.clear(); //for avoid deleting executable comment at the top of the file
                     continue;
                 }
 
-                std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
-
                 if (last_table != curr_statement.table)
                 {
+                    std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
                     if (file_to_write != nullptr)
                         file_to_write->flush();
                     file_to_write = new mysql64(path_to_write.string(), FILE_MODE_WRITE, BUFFER_SIZE);
@@ -165,7 +170,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 if (temp.size() > 0)
                 {
                     if (DEBUG_MODE)
-                        std::cout << "writing temp data to " << path_to_write.string() << '\n';
+                        std::cout << "writing temp data to " << file_to_write->name() << '\n';
                     else
                         std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
 
@@ -173,7 +178,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 }
 
                 if (DEBUG_MODE)
-                    std::cout << "writing to " << path_to_write.string() << '\n';
+                    std::cout << "writing to " << file_to_write->name() << '\n';
                 else
                     file_to_write->write(curr_statement);
 

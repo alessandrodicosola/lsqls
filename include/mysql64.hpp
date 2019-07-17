@@ -22,6 +22,7 @@ public:
     const bool is_open() const { return file.is_open(); }
     const uint64_t current_position() { return file.current_position(); }
     void flush() { file.flush(); }
+    const std::string name() const { return std::string(file.filename()); }
 
 private:
     inline void assert_ending_with_column(const statement &statement) const
