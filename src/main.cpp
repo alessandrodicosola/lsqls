@@ -11,13 +11,12 @@ using namespace std::literals::chrono_literals;
 #include "mysql64.hpp"
 
 /* global */
-mysql64 *SQL64_FILE = nullptr;
+mysql64 *file_to_reaad = nullptr;
 std::filesystem::path current_path;
 std::string max_size_formatted;
 bool TOKEN_MODE = true;
 bool DEBUG_MODE = false;
-/* 100KB of buffer should be enough for Friends table which contains a lot of data for each line */
-const unsigned int BUFFER_SIZE = 3 * 100 * 1024;
+const unsigned int BUFFER_SIZE = 100 * 1024;
 
 /* declarations */
 void usage();
@@ -37,12 +36,12 @@ int main(int argc, char **args)
     }
 
     const std::string filename = std::string(args[1]);
-    SQL64_FILE = new mysql64(filename, FILE_MODE_READ, BUFFER_SIZE);
+    file_to_reaad = new mysql64(filename, FILE_MODE_READ, BUFFER_SIZE);
 
-    if (!SQL64_FILE->is_open())
+    if (!file_to_reaad->is_open())
         return 1;
 
-    max_size_formatted = format_bytes(SQL64_FILE->size());
+    max_size_formatted = format_bytes(file_to_reaad->size());
     std::filesystem::path temp_path{filename};
     current_path = std::move(temp_path);
 
@@ -89,8 +88,8 @@ int main(int argc, char **args)
         return 1;
     }
 
-    delete SQL64_FILE;
-    
+    delete file_to_reaad;
+
     return 0;
 }
 
@@ -129,7 +128,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
 
     mysql64 *file_to_write = nullptr;
 
-    while (SQL64_FILE->read(curr_statement))
+    while (file_to_reaad->read(curr_statement))
     {
         //avoid high cpu temp caused by 100% usage
         std::this_thread::sleep_for(10ms);
@@ -154,8 +153,8 @@ void option_t(const std::vector<std::string> &excluded_tables)
                     if (last_table != curr_statement.table && file_to_write != nullptr)
                         file_to_write->flush();
 
-                    if (file_to_write != nullptr)
-                        temp.clear(); //for avoid deleting executable comment at the top of the file
+                    if (file_to_write != nullptr && temp.size() > 0) //for avoid deleting executable comment at the top of the file
+                        temp.clear();
                     continue;
                 }
 
@@ -170,7 +169,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 if (temp.size() > 0)
                 {
                     if (DEBUG_MODE)
-                        std::cout << "writing temp data to " << file_to_write->name() << '\n';
+                        std::cout << "writing temp data to " << file_to_write->filename() << '\n';
                     else
                         std::for_each(temp.cbegin(), temp.cend(), [&](const statement &statement) { file_to_write->write(statement); });
 
@@ -178,7 +177,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 }
 
                 if (DEBUG_MODE)
-                    std::cout << "writing to " << file_to_write->name() << '\n';
+                    std::cout << "writing to " << file_to_write->filename() << '\n';
                 else
                     file_to_write->write(curr_statement);
 
@@ -188,7 +187,6 @@ void option_t(const std::vector<std::string> &excluded_tables)
             {
                 if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), last_table) != excluded_tables.cend())
                 {
-                    temp.clear();
                     continue;
                 }
                 else
@@ -221,7 +219,7 @@ void option_s(int number_of_lines)
 
 void show_progress()
 {
-    std::cout << format_bytes(SQL64_FILE->current_position()) << "-" << max_size_formatted << "\n";
+    std::cout << format_bytes(file_to_reaad->position()) << "-" << max_size_formatted << "\n";
 }
 
 const std::string format_bytes(const uint64_t value)

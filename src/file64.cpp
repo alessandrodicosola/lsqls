@@ -1,6 +1,4 @@
 #include "file64.hpp"
-#include <stdexcept>
-#include <algorithm>
 
 file64::file64(const char *filename, const char *mode, const unsigned int BUFFER_SIZE) : _BUFFER_SIZE{BUFFER_SIZE}, _filename{filename}
 {
@@ -28,7 +26,7 @@ file64::file64(const char *filename, const char *mode, const unsigned int BUFFER
     {
         perror("Error occured reading file to the end");
         fclose(ptr);
-        throw std::runtime_error("It's impossibile to determine file size");
+        throw std::runtime_error("It is impossibile to determine file size");
     }
 
     _file_size = ftello(ptr);
@@ -56,7 +54,7 @@ void file64::close()
 
     _is_open = false;
 }
-const bool file64::get_line(std::string &line)
+const bool file64::getline(std::string &line)
 {
     char *buffer = new char[_BUFFER_SIZE];
     char *result = fgets(buffer, _BUFFER_SIZE, ptr);
@@ -68,7 +66,7 @@ const bool file64::get_line(std::string &line)
         {
             perror("Error reading string from file");
             fclose(ptr);
-            throw std::runtime_error("Error reading line " + std::to_string(_line_number));
+            throw std::runtime_error("Error reading line " + std::to_string(++_line_number));
         }
         else if (eof)
         {
@@ -93,22 +91,13 @@ const bool file64::get_line(std::string &line)
     return true;
 }
 
-void file64::write_line(const std::string &line)
+void file64::writeline(const std::string &line)
 {
 
     std::string buffer = line;
     buffer.append("\n");
 
-    size_t count_written = fwrite(buffer.data(), sizeof(buffer[0]), buffer.size(), ptr);
-    if (count_written < buffer.size())
-    {
-        perror("error occured while writing");
-        flush();
-        fclose(ptr);
-        throw std::runtime_error("error occured writing");
-    }
-
-    //char result = fputs(buffer.c_str(), ptr);
+    char result = fputs(buffer.c_str(), ptr);
 
     if (ferror(ptr))
     {
@@ -123,8 +112,12 @@ void file64::write_line(const std::string &line)
 void file64::flush()
 {
     char result = fflush(ptr);
-    if (result != 0){
-        perror("error occured flushing data from buffer to disk");
+    if (result != 0)
+    {
+        std::string msg = "error occured flushing data from buffer to file: ";
+        msg.append(_filename);
+
+        perror(msg.c_str());
         clearerr(ptr);
     }
 }
@@ -134,7 +127,7 @@ void file64::start()
     rewind(ptr);
 }
 
-const uint64_t file64::current_position() const
+const uint64_t file64::position() const
 {
     return ftello(ptr);
 }
