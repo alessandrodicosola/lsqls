@@ -6,12 +6,16 @@
 #include <chrono>
 using namespace std::literals::chrono_literals;
 #include <filesystem>
-#include <cmath>
+#include <algorithm>
 
+#include "byte_string_utility.hpp"
 #include "mysql64.hpp"
 
+//TODO move global variables inside function as parameters
+//TODO use smart pointer
+
 /* global */
-mysql64 *file_to_reaad = nullptr;
+mysql64 *file_to_read = nullptr;
 std::filesystem::path current_path;
 std::string max_size_formatted;
 bool TOKEN_MODE = true;
@@ -21,10 +25,8 @@ const unsigned int BUFFER_SIZE = 100 * 1024;
 /* declarations */
 void usage();
 void option_t(const std::vector<std::string> &excluded_tables);
-void option_s(int number_of_lines);
+void option_s(uint64_t max_bytes);
 void show_progress();
-
-const std::string format_bytes(const uint64_t value);
 
 int main(int argc, char **args)
 {
@@ -36,49 +38,47 @@ int main(int argc, char **args)
     }
 
     const std::string filename = std::string(args[1]);
-    file_to_reaad = new mysql64(filename, FILE_MODE_READ, BUFFER_SIZE);
+    file_to_read = new mysql64(filename, FILE_MODE_READ, BUFFER_SIZE);
 
-    if (!file_to_reaad->is_open())
+    if (!file_to_read->is_open())
         return 1;
 
-    max_size_formatted = format_bytes(file_to_reaad->size());
+    max_size_formatted = to_bytes_string(file_to_read->size());
     std::filesystem::path temp_path{filename};
     current_path = std::move(temp_path);
 
     const std::string option = std::string(args[2]);
 
+    if (std::string(args[argc - 1]) == "--dry")
+    {
+        TOKEN_MODE = true;
+        DEBUG_MODE = false;
+    }
+    else if (std::string(args[argc - 1]) == "--debug")
+    {
+        DEBUG_MODE = true;
+        TOKEN_MODE = false;
+    }
+
     if (option == "-t" || option == "--tables")
     {
         std::vector<std::string> excluded_tables;
 
-        if (std::string(args[argc - 1]) == "--dry")
+        if ((!DEBUG_MODE || !TOKEN_MODE) && argc > 2)
         {
-            TOKEN_MODE = true;
-            DEBUG_MODE = false;
-        }
-        else if (std::string(args[argc - 1]) == "--debug")
-        {
-            DEBUG_MODE = true;
-            TOKEN_MODE = false;
-        }
-        else
-        {
-            TOKEN_MODE = false;
-            DEBUG_MODE = false;
-
-            if (argc > 2)
+            for (int i = 3; i <= argc - 1; i++)
             {
-                for (int i = 3; i <= argc - 1; i++)
-                {
-                    excluded_tables.push_back(std::string(args[i]));
-                }
+                excluded_tables.push_back(std::string(args[i]));
             }
         }
+
         option_t(excluded_tables);
     }
     else if (option == "-s" || option == "--split")
     {
-        option_s(0);
+        uint64_t max_bytes = from_bytes_string(std::string(args[3]));
+
+        option_s(max_bytes);
     }
     else
     {
@@ -88,7 +88,9 @@ int main(int argc, char **args)
         return 1;
     }
 
-    delete file_to_reaad;
+    delete file_to_read;
+
+    std::cout << " === WORK DONE === " << std::endl;
 
     return 0;
 }
@@ -100,7 +102,7 @@ void usage()
         "lsqls FILE [OPTION]",
         "split sql FILE based on OPTION",
         "-t, --tables [EXCLUDED TABLES]\n\tcreate files named with table name used by FILE. Skip EXCLUDED TABLES if setted",
-        "-s, --split [NUMBER OF LINE]\n\tsplit sql file into different file with fixed number of lines",
+        "-s, --split [SIZE]\n\tsplit sql file into different file with fixed SIZE { digit: # suffix: B,KB,MB,GB,TB format: {#}{suffix} }",
         "--dry\n\tprint statement read from FILE without writing",
         "--debug\n\tprocess FILE without writing to file"};
 
@@ -115,7 +117,7 @@ void usage()
               << "\t" << usage[2] << "\n"
               << usage[3] << "\n"
               << usage[4] << "\n"
-              << usage[5] << "\n" 
+              << usage[5] << "\n"
               << usage[6] << std::endl;
 }
 
@@ -129,7 +131,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
 
     mysql64 *file_to_write = nullptr;
 
-    while (file_to_reaad->read(curr_statement))
+    while (file_to_read->read(curr_statement))
     {
         //avoid high cpu temp caused by 100% usage
         std::this_thread::sleep_for(10ms);
@@ -138,10 +140,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
         if (TOKEN_MODE || DEBUG_MODE)
             std::cout << curr_statement << '\n';
 
-        if (curr_statement.type == statement_type::COMMENT)
-            continue;
-
-        if (curr_statement.line == "\n" || curr_statement.line.empty())
+        if (curr_statement.type == statement_type::COMMENT || curr_statement.empty())
             continue;
 
         if (!TOKEN_MODE)
@@ -213,29 +212,69 @@ void option_t(const std::vector<std::string> &excluded_tables)
         delete file_to_write;
 }
 
-void option_s(int number_of_lines)
+void option_s(uint64_t max_bytes)
 {
-    throw std::runtime_error("not implemented");
+    mysql64 *file_to_write = nullptr;
+
+    uint64_t current_bytes = 0;
+    statement curr_statement;
+    std::string last_table;
+
+    int index = 1;
+
+    const auto filename = current_path.stem();
+    const auto dir = std::filesystem::path(current_path).remove_filename();
+    auto now_dir(dir / filename);
+
+    if (!std::filesystem::exists(now_dir))
+        std::filesystem::create_directory(now_dir);
+
+    auto now_file = filename.string() + "." + std::to_string(index) + ".sql";
+    auto now_path(now_dir / now_file);
+
+    while (file_to_read->read(curr_statement))
+    {
+        std::this_thread::sleep_for(10ms);
+
+        if (!file_to_write && !DEBUG_MODE)
+            file_to_write = new mysql64(now_path, FILE_MODE_WRITE, 1024 * 8);
+
+        if (curr_statement.type == statement_type::COMMENT || curr_statement.empty())
+            continue;
+
+        if (DEBUG_MODE)
+            std::cout << "writing statement size: " << curr_statement.line.size() << " into file: " << now_path << '\n';
+        else
+            file_to_write->write(curr_statement);
+
+        current_bytes += curr_statement.line.size();
+
+        if (current_bytes > max_bytes)
+        {
+            current_bytes = 0;
+            index++;
+
+            now_file = filename.string() + "." + std::to_string(index) + ".sql";
+            now_path = now_dir / now_file;
+            if (!DEBUG_MODE && file_to_write)
+            {
+                file_to_write->flush();
+                delete file_to_write;
+                file_to_write = nullptr;
+            }
+        }
+    }
+
+    /* ensure all data are written on disk */
+    if (file_to_write)
+    {
+        file_to_write->flush();
+        delete file_to_write;
+        file_to_write = nullptr;
+    }
 }
 
 void show_progress()
 {
-    std::cout << format_bytes(file_to_reaad->position()) << "-" << max_size_formatted << "\n";
-}
-
-const std::string format_bytes(const uint64_t value)
-{
-
-    static const char *prefixes[5] = {"B", "KB", "MB", "GB", "TB"};
-    if (value == 0)
-        return "0B";
-    if (value < 1024)
-        return std::to_string(value) + "B";
-
-    int exponent = log10(value) / 3;
-    double return_value = value / pow(1024, exponent);
-
-    char *out = new char[20];
-    sprintf(out, "%3.2f%s", return_value, prefixes[exponent]);
-    return out;
+    std::cout << to_bytes_string(file_to_read->position()) << "-" << max_size_formatted << "\n";
 }

@@ -9,6 +9,7 @@ class mysql64 : public sql_operations
 {
 public:
     mysql64(const std::string &filename, const char *mode, const unsigned int BUFFER_SIZE = 1024);
+    
     void close()
     {
         if (file.is_open())

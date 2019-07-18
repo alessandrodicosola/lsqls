@@ -1,3 +1,0 @@
-#!/bin/bash
- ./run_build 
- ./bin/lsqls /mnt/Università/Tesi/Tables/original/steam.sql --tables --dry

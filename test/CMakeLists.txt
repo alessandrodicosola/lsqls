@@ -22,3 +22,7 @@ add_executable(${TEST3} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST3}.cpp ${EXTERNAL_SOUR
 set(TEST4 test_eof)
 add_test(NAME ${TEST4} COMMAND ${TEST4})
 add_executable(${TEST4} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST4}.cpp ${EXTERNAL_SOURCES})
+
+set(TEST5 test_bso)
+add_test(NAME ${TEST5} COMMAND ${TEST5})
+add_executable(${TEST5} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST5}.cpp ${EXTERNAL_SOURCES})

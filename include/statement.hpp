@@ -40,8 +40,8 @@ struct statement
     uint64_t line_number;
     statement_type type;
     const bool has_table() const { return !table.empty(); }
-
-    friend inline std::ostream &operator<<(std::ostream &out,const statement& s)
+    const bool empty() const { return line.empty() || line == "\n"; }
+    friend inline std::ostream &operator<<(std::ostream &out, const statement &s)
     {
         std::string trim_line = s.line;
         if (trim_line.length() > __MAX_LINE_STATEMENT_LENGTH__)
@@ -53,6 +53,5 @@ struct statement
         return out;
     }
 };
-
 
 #endif

@@ -7,7 +7,9 @@ file64::file64(const char *filename, const char *mode, const unsigned int BUFFER
     if (ptr == nullptr)
     {
         perror("Error occured opening file");
-        throw std::runtime_error("Error occured opening file");
+        std::string msg = "Error occured opening file: ";
+        msg.append(_filename);
+        throw std::runtime_error(msg);
     }
 
     _is_open = true;
@@ -45,14 +47,12 @@ void file64::close()
     _line_number = 0;
     if (ptr != nullptr)
     {
-        fflush(ptr);
-        fclose(ptr);
-        if (ferror(ptr))
-            perror("Error closing file");
-        _is_open = false;
+        fclose(ptr); /* delete pointer */
+        if (ferror(ptr)) perror("error closing file");
     }
 
     _is_open = false;
+
 }
 const bool file64::getline(std::string &line)
 {
