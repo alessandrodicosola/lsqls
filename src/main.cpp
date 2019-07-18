@@ -115,7 +115,8 @@ void usage()
               << "\t" << usage[2] << "\n"
               << usage[3] << "\n"
               << usage[4] << "\n"
-              << usage[5] << std::endl;
+              << usage[5] << "\n" 
+              << usage[6] << std::endl;
 }
 
 void option_t(const std::vector<std::string> &excluded_tables)

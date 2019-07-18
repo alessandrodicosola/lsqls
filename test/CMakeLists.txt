@@ -18,3 +18,7 @@ add_executable(${TEST2} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST2}.cpp ${EXTERNAL_SOUR
 set(TEST3 test_mysql64)
 add_test(NAME ${TEST3} COMMAND ${TEST3})
 add_executable(${TEST3} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST3}.cpp ${EXTERNAL_SOURCES})
+
+set(TEST4 test_eof)
+add_test(NAME ${TEST4} COMMAND ${TEST4})
+add_executable(${TEST4} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST4}.cpp ${EXTERNAL_SOURCES})

@@ -16,5 +16,4 @@ bin
 Testing
 test/bin
 test/test.txt
-test/test-*.txt
 # End of https://www.gitignore.io/api/code
