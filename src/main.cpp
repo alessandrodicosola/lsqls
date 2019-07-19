@@ -18,7 +18,7 @@ using namespace std::literals::chrono_literals;
 mysql64 *file_to_read = nullptr;
 std::filesystem::path current_path;
 std::string max_size_formatted;
-bool TOKEN_MODE = true;
+bool TOKEN_MODE = false;
 bool DEBUG_MODE = false;
 const unsigned int BUFFER_SIZE = 100 * 1024;
 
@@ -150,10 +150,10 @@ void option_t(const std::vector<std::string> &excluded_tables)
 
                 if (std::find(excluded_tables.cbegin(), excluded_tables.cend(), curr_statement.table) != excluded_tables.cend())
                 {
-                    if (last_table != curr_statement.table && file_to_write != nullptr)
+                    if (last_table != curr_statement.table && file_to_write)
                         file_to_write->flush();
 
-                    if (file_to_write != nullptr && temp.size() > 0) //for avoid deleting executable comment at the top of the file
+                    if (file_to_write && temp.size() > 0) //for avoid deleting executable comment at the top of the file
                         temp.clear();
                     continue;
                 }
@@ -161,8 +161,12 @@ void option_t(const std::vector<std::string> &excluded_tables)
                 if (last_table != curr_statement.table)
                 {
                     std::filesystem::path path_to_write{current_path.remove_filename().string() + curr_statement.table + ".sql"};
-                    if (file_to_write != nullptr)
+                    if (file_to_write)
+                    {
                         file_to_write->flush();
+                        delete file_to_write;
+                        file_to_write = nullptr;
+                    }
                     file_to_write = new mysql64(path_to_write.string(), FILE_MODE_WRITE, BUFFER_SIZE);
                 }
 
@@ -197,7 +201,6 @@ void option_t(const std::vector<std::string> &excluded_tables)
                             std::cout << "writing unlock." << '\n';
                         else
                             file_to_write->write(curr_statement);
-                        continue;
                     }
                     else
                     {
@@ -208,7 +211,7 @@ void option_t(const std::vector<std::string> &excluded_tables)
         }
     }
 
-    if (file_to_write != nullptr)
+    if (file_to_write)
         delete file_to_write;
 }
 

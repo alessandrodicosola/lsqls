@@ -15,7 +15,7 @@ static constexpr size_t _gb = _mb * 1024;
 template <size_t N_power_of_1024>
 constexpr auto make_suffixes()
 {
-    std::array<uint64_t, N_power_of_1024 + 1> out;
+    std::array<uint64_t, N_power_of_1024 + 1> out;  //TODO: add = {0};
     for (uint64_t i = 0; i < N_power_of_1024 + 1; i++)
     {
         out[i] = pow(1024,i);
