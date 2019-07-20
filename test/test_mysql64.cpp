@@ -1,33 +1,35 @@
 #include "mysql64.hpp"
 #include "assert.hpp"
 
-int main(void)
-{
+#if _WIN32 || _WIN64
+#define TEST_DIR "C:\\Users\\aless\\source\\repos\\lsqls\\test\\statements.txt"
+#elif __linux__
+#define TEST_DIR "/home/alessandro/src/lsqls/test/statements.txt"
+#endif
+int main(void) {
 
-    mysql64 file = mysql64{"/home/alessandro/src/lsqls/test/sql_statement.txt", FILE_MODE_READ};
+  mysql64 file = mysql64{TEST_DIR, FILE_MODE_READ};
 
-    ASSERT_NOMSG(file.is_open());
+  ASSERT_NOMSG(file.is_open());
 
-    statement s;
+  statement s;
 
-    while (file.read(s))
-    {
-        char *val = new char[1024];
-        sprintf(val, "Expected table for %s", enum_to_string.at(s.type).c_str());
+  while (file.read(s)) {
+    char *val = new char[1024];
+    sprintf(val, "Expected table for %s",
+            statement_type_strings.at(s.type).c_str());
 
-        if (s.type == statement_type::COMMENT || s.type == statement_type::NONE || s.type == statement_type::UNLOCK)
-            ASSERT_NOMSG(!s.has_table());
-        else if (s.type == statement_type::EXECUTABLE_COMMENT)
-        {
-            if (s.line.find("ALTER TABLE") != std::string::npos)
-                ASSERT(s.has_table(), val);
-            else
-                ASSERT_NOMSG(!s.has_table());
-        }
-        else
-            ASSERT(s.has_table(), val);
-    }
+    if (s.type == statement_type::COMMENT || s.type == statement_type::NONE ||
+        s.type == statement_type::UNLOCK)
+      ASSERT_NOMSG(!s.has_table());
+    else if (s.type == statement_type::EXECUTABLE_COMMENT) {
+      if (s.line.find("ALTER TABLE") != std::string::npos)
+        ASSERT(s.has_table(), val);
+      else
+        ASSERT_NOMSG(!s.has_table());
+    } else
+      ASSERT(s.has_table(), val);
+  }
 
-    
-    return 0;
+  return 0;
 }

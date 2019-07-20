@@ -1,19 +1,16 @@
-
-# Created by https://www.gitignore.io/api/code
-# Edit at https://www.gitignore.io/?templates=code
-
 ### Code ###
 .vscode
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+
+### Visual Studio 2019 ###
+(I|i)nstall
+out
+.vs
 
 ### CMake folders ###
 build
 bin
 Testing
 test/bin
-test/test.txt
-# End of https://www.gitignore.io/api/code
+
+

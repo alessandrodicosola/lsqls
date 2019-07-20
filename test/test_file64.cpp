@@ -1,10 +1,13 @@
-#include <file64.hpp>
+#include "file64.hpp"
 #include "assert.hpp"
+#include <filesystem>
+
 
 int main()
 {
+	auto path = std::filesystem::current_path() / "test.txt";
 
-    file64 file = file64{"/home/alessandro/src/lsqls/test/test.txt", FILE_MODE_WRITE_AND_READ, 1024};
+    file64 file = file64{path.string().c_str(), FILE_MODE_WRITE_AND_READ, 1024};
     file.writeline("1");
     file.writeline("2");
     file.writeline("3\n4");

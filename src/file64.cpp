@@ -1,133 +1,138 @@
 #include "file64.hpp"
+#include <cinttypes>
+#include <algorithm>
+#include "utility.hpp"
 
-file64::file64(const char *filename, const char *mode, const unsigned int BUFFER_SIZE) : _BUFFER_SIZE{BUFFER_SIZE}, _filename{filename}
+
+#ifdef __linux__
+#defind _seek_(FILE, OFFSET, ORIGIN) fseeko(FILE, OFFSET, ORIGIN)
+#define _tell_(FILE) ftello(FILE)
+#elif __WIN32 || _WIN64
+#define _seek_(FILE,OFFSET,ORIGIN) _fseeki64(FILE,OFFSET,ORIGIN)
+#define _tell_(FILE) _ftelli64(FILE)
+#endif
+
+file64::file64(const char* filename, const char* mode, int buffer_size) : BUFFER_SIZE(buffer_size), _filename{ filename }
 {
-    ptr = fopen(filename, mode);
 
-    if (ptr == nullptr)
-    {
-        perror("Error occured opening file");
-        std::string msg = "Error occured opening file: ";
-        msg.append(_filename);
-        throw std::runtime_error(msg);
-    }
+	ptr = fopen(filename, mode);
 
-    _is_open = true;
+	if (ptr == nullptr)
+	{
+		utility::__throw("error opening file: %s", filename);
+	}
 
-    char result = setvbuf(ptr, NULL, _IOFBF, _BUFFER_SIZE);
-    if (result != 0)
-    {
-        perror("Error occured allocating the buffer");
-        pclose(ptr);
-        throw std::runtime_error("Error occured allocating buffer");
-    }
+	_is_open = true;
 
-    result = fseeko(ptr, 0, SEEK_END);
+	char result = setvbuf(ptr, nullptr, _IOFBF, BUFFER_SIZE);
+	if (result != 0)
+	{
+		fclose(ptr);
+		utility::__throw("error allocating buffer");
+	}
 
-    if (result != 0)
-    {
-        perror("Error occured reading file to the end");
-        fclose(ptr);
-        throw std::runtime_error("It is impossibile to determine file size");
-    }
+	result = _seek_(ptr, 0, SEEK_END);
 
-    _file_size = ftello(ptr);
+	if (result != 0)
+	{
+		fclose(ptr);
+		utility::__throw("error obtaining file size");
+	}
 
-    rewind(ptr);
+	_size = _tell_(ptr);
+
+	rewind(ptr);
 }
 
 file64::~file64()
 {
-    close();
+	close();
 }
 
 void file64::close()
 {
+	if (ptr)
+	{
+		fclose(ptr);
+		if (ferror(ptr)>0) perror("error closing file");
+	}
 
-    _line_number = 0;
-    if (ptr != nullptr)
-    {
-        fclose(ptr); /* delete pointer */
-        if (ferror(ptr)) perror("error closing file");
-    }
-
-    _is_open = false;
+	_line_number = 0;
+	_size = 0;
+	_is_open = false;
+	_filename = "";
 
 }
-const bool file64::getline(std::string &line)
+
+bool file64::getline(std::string& line)
 {
-    char *buffer = new char[_BUFFER_SIZE];
-    char *result = fgets(buffer, _BUFFER_SIZE, ptr);
-    if (result == nullptr)
-    {
-        bool eof = feof(ptr);
-        bool error = ferror(ptr);
-        if (error)
-        {
-            perror("Error reading string from file");
-            fclose(ptr);
-            throw std::runtime_error("Error reading line " + std::to_string(++_line_number));
-        }
-        else if (eof)
-        {
-            return false;
-        }
-    }
+	char* buffer = new char[BUFFER_SIZE];
+	char* result = fgets(&buffer[0], BUFFER_SIZE, ptr);
+	if (!result)
+	{
+		const bool eof = feof(ptr);
+		const bool error = ferror(ptr);
+		if (error)
+		{
+			fclose(ptr);
+			utility::__throw("error reading at line" PRIu64 "%d in %s", _line_number, _filename);
+		}
+		else if (eof)
+		{
+			return false;
+		}
+	}
 
-    _line_number++;
+	_line_number++;
 
-    line = std::string(buffer);
+	line = std::string(buffer);
 
-    /* trim string and delete last \n char */
-    auto last_lf = line.find_last_of('\n');
-    if (last_lf != std::string::npos)
-        line.erase(last_lf);
-    auto left = std::find_if(line.cbegin(), line.cend(), not_isspace_func);
-    auto right = std::find_if(line.crbegin(), line.crend(), not_isspace_func).base();
-    if (left > line.cbegin())
-        line.erase(line.cbegin(), left);
-    if (right < line.cend())
-        line.erase(right, line.cend());
-    return true;
+	delete[] buffer;
+
+	/* trim string and delete last \n char */
+	auto last_lf = line.find_last_of('\n');
+	if (last_lf != std::string::npos)
+		line.erase(last_lf);
+	auto left = std::find_if(line.cbegin(), line.cend(), not_isspace_func);
+	auto right = std::find_if(line.crbegin(), line.crend(), not_isspace_func).base();
+	if (left > line.cbegin())
+		line.erase(line.cbegin(), left);
+	if (right < line.cend())
+		line.erase(right, line.cend());
+	return true;
 }
 
-void file64::writeline(const std::string &line)
+void file64::writeline(const std::string& line)
 {
-
-    std::string buffer = line;
-    buffer.append("\n");
-
-    char result = fputs(buffer.c_str(), ptr);
-
-    if (ferror(ptr))
-    {
-        perror("Error writing data into the stream");
-        clearerr(ptr);
-        flush();
-        pclose(ptr);
-        throw std::runtime_error("Error writing data into the stream");
-    }
+	const int result1 = fputs(line.c_str(), ptr);
+	const int result2 = fputc('\n', ptr);
+	
+	if (ferror(ptr))
+	{
+		flush();
+		fclose(ptr);
+		utility::__throw("error writing data");
+	}
 }
+
+
 
 void file64::flush()
 {
-    char result = fflush(ptr);
-    if (result != 0)
-    {
-        std::string msg = "error occured flushing data from buffer to file: ";
-        msg.append(_filename);
-
-        perror(msg.c_str());
-        clearerr(ptr);
-    }
+	const int result = fflush(ptr);
+	if (result != 0)
+	{
+		perror("error flushing buffer");
+		clearerr(ptr);
+	}
 }
 
 void file64::start()
 {
-    rewind(ptr);
+	rewind(ptr);
 }
 
 const uint64_t file64::position() const
 {
-    return ftello(ptr);
+	return _tell_(ptr);
 }

@@ -3,10 +3,11 @@ cmake_minimum_required(VERSION 3.0)
 project(lsqls_test)
 get_filename_component(PARENT_DIRECTORY ../ ABSOLUTE)
 
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
-message(STATUS "bin directory for test: ${CMAKE_CURRENT_BINARY_DIR}")
+message(STATUS "bin directory for test: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 set(EXTERNAL_SOURCES ${PARENT_DIRECTORY}/src/file64.cpp)
 

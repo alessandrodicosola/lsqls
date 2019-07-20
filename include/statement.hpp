@@ -7,7 +7,6 @@
 #include <ostream>
 #include <unordered_map>
 
-#define ENUM_TO_STRING(enum) #enum
 enum class statement_type : int
 {
     INSERT = 1,
@@ -22,7 +21,7 @@ enum class statement_type : int
     NONE = 512,
     TRASH = NONE | COMMENT | EXECUTABLE_COMMENT | START_MULTILINE_COMMENT | END_MULTILINE_COMMENT
 };
-const static std::unordered_map<statement_type, std::string> enum_to_string{
+const static std::unordered_map<statement_type, std::string> statement_type_strings{
     {statement_type::INSERT, "INSERT"},
 
     {statement_type::CREATE, "CREATE"},
@@ -35,7 +34,9 @@ const static std::unordered_map<statement_type, std::string> enum_to_string{
 
 struct statement
 {
-    std::string line;
+	statement() : line(""),table(""),line_number(0),type(statement_type::NONE){}
+
+	std::string line;
     std::string table;
     uint64_t line_number;
     statement_type type;
@@ -49,7 +50,7 @@ struct statement
             trim_line.erase(__MAX_LINE_STATEMENT_LENGTH__ + 1, trim_line.length() - 1);
             trim_line += "...";
         }
-        out << s.line_number << "[" << enum_to_string.at(s.type) << "]" << trim_line;
+        out << s.line_number << "[" << statement_type_strings.at(s.type) << "]" << trim_line;
         return out;
     }
 };
