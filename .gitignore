@@ -6,11 +6,11 @@
 (I|i)nstall
 out
 .vs
-
-### CMake folders ###
-build
 bin
-Testing
-test/bin
+build
 
-
+### Test ###
+test
+!test/include
+!test/CMakeLists
+!test_*

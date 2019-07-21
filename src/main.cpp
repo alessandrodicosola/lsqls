@@ -30,41 +30,49 @@ int main(int argc, char **args) {
   }
 
   const std::string filename = std::string(args[1]);
-  const auto file_to_read =
-      std::make_unique<mysql64>(filename, FILE_MODE_READ, BUFFER_SIZE);
 
-  if (!file_to_read->is_open())
-    return 1;
+  try {
 
-  const std::string option = std::string(args[2]);
+    const auto file_to_read =
+        std::make_unique<mysql64>(filename, FILE_MODE_READ, BUFFER_SIZE);
 
-  if (std::string(args[argc - 1]) == "--dry") {
-    TOKEN_MODE = true;
-    DEBUG_MODE = false;
-  } else if (std::string(args[argc - 1]) == "--debug") {
-    DEBUG_MODE = true;
-    TOKEN_MODE = false;
-  }
+    if (!file_to_read->is_open())
+      return 1;
 
-  if (option == "-t" || option == "--tables") {
-    std::vector<std::string> excluded_tables;
+    const std::string option = std::string(args[2]);
 
-    if ((!DEBUG_MODE || !TOKEN_MODE) && argc > 2) {
-      for (int i = 3; i <= argc - 1; i++) {
-        excluded_tables.push_back(std::string(args[i]));
-      }
+    if (std::string(args[argc - 1]) == "--dry") {
+      TOKEN_MODE = true;
+      DEBUG_MODE = false;
+    } else if (std::string(args[argc - 1]) == "--debug") {
+      DEBUG_MODE = true;
+      TOKEN_MODE = false;
     }
 
-    option_t(file_to_read, excluded_tables);
-  } else if (option == "-s" || option == "--split") {
-    const uint64_t max_bytes =
-        utility::byte::bytes_from_string(std::string(args[3]));
+    if (option == "-t" || option == "--tables") {
+      std::vector<std::string> excluded_tables;
 
-    option_s(file_to_read, max_bytes);
-  } else {
-    std::cout << "Expected [-t | --tables ] or [ -s | --split ]"
-              << "\n\n";
-    usage();
+      if ((!DEBUG_MODE || !TOKEN_MODE) && argc > 2) {
+        for (int i = 3; i <= argc - 1; i++) {
+          excluded_tables.push_back(std::string(args[i]));
+        }
+      }
+
+      option_t(file_to_read, excluded_tables);
+    } else if (option == "-s" || option == "--split") {
+      const uint64_t max_bytes =
+          utility::byte::bytes_from_string(std::string(args[3]));
+
+      option_s(file_to_read, max_bytes);
+    } else {
+      std::cout << "Expected [-t | --tables ] or [ -s | --split ]"
+                << "\n\n";
+      usage();
+      return 1;
+    }
+
+  } catch (std::exception &ex) {
+    std::cerr << ex.what() << std::endl;
     return 1;
   }
 
@@ -78,15 +86,16 @@ void usage() {
       "NAME\n\tlsqls - split large sql file into small files",
       "SYNOPSIS\n\tlsqls FILE [OPTION]",
       "DESCRIPTION\n\tsplit sql FILE based on OPTION",
-      "\t-t, --tables [EXCLUDED TABLES]\n\tcreate files named with table name ",
-      "\tused by FILE. Skip EXCLUDED TABLES if setted",
-      "\t-s, --split [SIZE]\n\tsplit sql file into different file with fixed "
-      "\tSIZE { digit: # suffix: B,KB,MB,GB,TB format: {#}{suffix} }",
-      "\t--dry\n\tprint statement read from FILE without writing",
-      "\t--debug\n\tprocess FILE without writing to file"};
+      "\t-t, --tables [EXCLUDED TABLES]\n\t\tcreate files named with table "
+      "name ",
+      "\tused by FILE. Skip EXCLUDED TABLES if set",
+      "\t-s, --split [SIZE]\n\t\tsplit sql file into different file with fixed "
+      "SIZE { digit: # suffix: B,KB,MB,GB,TB format: {#}{suffix} }",
+      "\t--dry\n\t\tprint statement read from FILE without writing",
+      "\t--debug\n\t\tprocess FILE without writing to file"};
 
   std::for_each(std::begin(usage), std::end(usage),
-                [](const std::string &line) { std::cout << line << '\t'; });
+                [](const std::string &line) { std::cout << line << '\n'; });
 }
 
 void option_t(const std::unique_ptr<mysql64> &file_to_read,
@@ -104,8 +113,15 @@ void option_t(const std::unique_ptr<mysql64> &file_to_read,
   std::unique_ptr<mysql64> file_to_write = nullptr;
 
   while (file_to_read->read(curr_statement)) {
-    // avoid high cpu temp caused by 100% usage
+/*
+            windows use 8% cpu and there are programs for control cpu freq and
+   fan
+            linux	use 99% cpu, it doesn't control fan or freq so for
+   avoiding
+   high temp I reduce cpu usage*/
+#if (__linux__)
     std::this_thread::sleep_for(10ms);
+#endif
 
     show_progress(file_to_read, max_size);
 
@@ -133,12 +149,11 @@ void option_t(const std::unique_ptr<mysql64> &file_to_read,
           std::filesystem::path path_to_write{current_path.parent_path() /
                                               (curr_statement.table + ".sql")};
           if (!DEBUG_MODE) {
-            if (file_to_write) {
+            if (file_to_write)
               file_to_write->flush();
 
-              file_to_write.reset(new mysql64(path_to_write.string(),
-                                              FILE_MODE_WRITE, BUFFER_SIZE));
-            }
+            file_to_write.reset(new mysql64(path_to_write.string(),
+                                            FILE_MODE_WRITE, BUFFER_SIZE));
           }
         }
 
@@ -201,8 +216,9 @@ void option_s(const std::unique_ptr<mysql64> &file_to_read,
   auto now_path(now_dir / now_file);
 
   while (file_to_read->read(curr_statement)) {
+#if __linux__
     std::this_thread::sleep_for(10ms);
-
+#endif
     if (!file_to_write && !DEBUG_MODE)
       file_to_write = std::make_unique<mysql64>(now_path.string(),
                                                 FILE_MODE_WRITE, 1024 * 8);

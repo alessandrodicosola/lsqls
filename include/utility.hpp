@@ -9,10 +9,22 @@
 #include <cstdarg>
 namespace utility
 {
-
-	inline void __throw(const char* fmt, ...)
+	inline void __throw(const char* fmt,...)
 	{
 		std::string container;
+		container.reserve(1024);
+		va_list args;
+		va_start(args, fmt);
+		vsprintf(&container[0], fmt, args);
+		va_end(args);
+
+		throw std::runtime_error(container);
+	}
+
+	inline void __throw_with_perror(const char* fmt, ...)
+	{
+		std::string container;
+		container.reserve(1024);
 		va_list args;
 		va_start(args, fmt);
 		vsprintf(&container[0], fmt, args);

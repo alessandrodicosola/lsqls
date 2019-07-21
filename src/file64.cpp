@@ -19,7 +19,7 @@ file64::file64(const char* filename, const char* mode, int buffer_size) : BUFFER
 
 	if (ptr == nullptr)
 	{
-		utility::__throw("error opening file: %s", filename);
+		utility::__throw_with_perror("error opening file: %s", filename);
 	}
 
 	_is_open = true;
@@ -28,7 +28,7 @@ file64::file64(const char* filename, const char* mode, int buffer_size) : BUFFER
 	if (result != 0)
 	{
 		fclose(ptr);
-		utility::__throw("error allocating buffer");
+		utility::__throw_with_perror("error allocating buffer");
 	}
 
 	result = _seek_(ptr, 0, SEEK_END);
@@ -36,7 +36,7 @@ file64::file64(const char* filename, const char* mode, int buffer_size) : BUFFER
 	if (result != 0)
 	{
 		fclose(ptr);
-		utility::__throw("error obtaining file size");
+		utility::__throw_with_perror("error obtaining file size");
 	}
 
 	_size = _tell_(ptr);
@@ -75,7 +75,7 @@ bool file64::getline(std::string& line)
 		if (error)
 		{
 			fclose(ptr);
-			utility::__throw("error reading at line" PRIu64 "%d in %s", _line_number, _filename);
+			utility::__throw_with_perror("error reading at line" PRIu64 "%d in %s", _line_number, _filename);
 		}
 		else if (eof)
 		{
@@ -111,7 +111,7 @@ void file64::writeline(const std::string& line)
 	{
 		flush();
 		fclose(ptr);
-		utility::__throw("error writing data");
+		utility::__throw_with_perror("error writing data");
 	}
 }
 
